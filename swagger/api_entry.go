@@ -133,7 +133,7 @@ func UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	client := crud.DefaultClient()
 	e := client.Entry.UpdateOneID(id)
-	e.Mutation().AddField("content", ee.Content)
+	e.SetContent(ee.Content)
 	if ee2, err := e.Save(context.Background()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

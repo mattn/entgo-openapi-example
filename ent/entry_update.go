@@ -27,6 +27,12 @@ func (eu *EntryUpdate) Where(ps ...predicate.Entry) *EntryUpdate {
 	return eu
 }
 
+// SetContent sets the "content" field.
+func (eu *EntryUpdate) SetContent(s string) *EntryUpdate {
+	eu.mutation.SetContent(s)
+	return eu
+}
+
 // Mutation returns the EntryMutation object of the builder.
 func (eu *EntryUpdate) Mutation() *EntryMutation {
 	return eu.mutation
@@ -104,6 +110,13 @@ func (eu *EntryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
+	if value, ok := eu.mutation.Content(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entry.FieldContent,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{entry.Label}
@@ -121,6 +134,12 @@ type EntryUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *EntryMutation
+}
+
+// SetContent sets the "content" field.
+func (euo *EntryUpdateOne) SetContent(s string) *EntryUpdateOne {
+	euo.mutation.SetContent(s)
+	return euo
 }
 
 // Mutation returns the EntryMutation object of the builder.
@@ -223,6 +242,13 @@ func (euo *EntryUpdateOne) sqlSave(ctx context.Context) (_node *Entry, err error
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := euo.mutation.Content(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entry.FieldContent,
+		})
 	}
 	_node = &Entry{config: euo.config}
 	_spec.Assign = _node.assignValues
