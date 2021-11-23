@@ -1,0 +1,4 @@
+*.sqlite
+entgo-openapi-example
+*.exe
+*.bat

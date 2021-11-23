@@ -1,0 +1,355 @@
+openapi: 3.0.3
+info:
+  title: Ent Schema API
+  description: This is an auto generated API description made out of an Ent schema
+    definition
+  contact: {}
+  license: {}
+  version: 0.0.0
+servers:
+- url: /
+paths:
+  /entries:
+    get:
+      tags:
+      - Entry
+      summary: List Entries
+      description: List Entries.
+      operationId: listEntry
+      parameters:
+      - name: page
+        in: query
+        description: what page to render
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
+          format: int32
+      - name: itemsPerPage
+        in: query
+        description: item count to render per page
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: result Entry list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry3455346119View'
+                x-content-type: application/json
+        "400":
+          description: "invalid input, data invalid"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_404'
+        "500":
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+    post:
+      tags:
+      - Entry
+      summary: Create a new Entry
+      description: Creates a new Entry and persists it to storage.
+      operationId: createEntry
+      requestBody:
+        description: Entry to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/entries_body'
+      responses:
+        "200":
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry3455346119View'
+        "400":
+          description: "invalid input, data invalid"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+        "500":
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+  /entries/{id}:
+    get:
+      tags:
+      - Entry
+      summary: Find a Entry by ID
+      description: Finds the Entry with the requested ID and returns it.
+      operationId: readEntry
+      parameters:
+      - name: id
+        in: path
+        description: ID of the Entry
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Entry with requested ID was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry3455346119View'
+        "400":
+          description: "invalid input, data invalid"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_404'
+        "500":
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+    delete:
+      tags:
+      - Entry
+      summary: Deletes a Entry by ID
+      description: Deletes the Entry with the requested ID.
+      operationId: deleteEntry
+      parameters:
+      - name: id
+        in: path
+        description: ID of the Entry to delete
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "204":
+          description: Entry with requested ID was deleted
+        "400":
+          description: "invalid input, data invalid"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_404'
+        "500":
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+    patch:
+      tags:
+      - Entry
+      summary: Updates a Entry
+      description: Updates a Entry and persists changes to storage.
+      operationId: updateEntry
+      parameters:
+      - name: id
+        in: path
+        description: ID of the Entry to update
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+          format: int32
+      requestBody:
+        description: Entry properties to update
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        "200":
+          description: Entry updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry3455346119View'
+        "400":
+          description: "invalid input, data invalid"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_400'
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_404'
+        "500":
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_500'
+components:
+  schemas:
+    Entry3455346119View:
+      required:
+      - content
+      - created_at
+      - id
+      type: object
+      properties:
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int32
+      example:
+        created_at: 2000-01-23T04:56:07.000+00:00
+        id: 0
+        content: content
+    inline_response_400:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 400
+        errors:
+          type: object
+          properties: {}
+        status:
+          type: string
+          example: Bad Request
+    inline_response_404:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 404
+        errors:
+          type: object
+          properties: {}
+        status:
+          type: string
+          example: Not Found
+    inline_response_500:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          example: 500
+        errors:
+          type: object
+          properties: {}
+        status:
+          type: string
+          example: Internal Server Error
+    entries_body:
+      required:
+      - content
+      - created_at
+      type: object
+      properties:
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    users_body:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+  responses:
+    "400":
+      description: "invalid input, data invalid"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/inline_response_400'
+    "403":
+      description: user misses permission
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                example: 403
+              errors:
+                type: object
+                properties: {}
+              status:
+                type: string
+                example: Forbidden
+    "404":
+      description: resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/inline_response_404'
+    "409":
+      description: conflicting resources
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                example: 409
+              errors:
+                type: object
+                properties: {}
+              status:
+                type: string
+                example: Conflict
+    "500":
+      description: unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/inline_response_500'
+  parameters: {}
