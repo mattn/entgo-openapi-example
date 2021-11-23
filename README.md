@@ -6,6 +6,8 @@ Example app created with
 * entgen
 * swagger-editor
 
+See https://entgo.io/blog/2021/09/10/openapi-generator/
+
 ## License
 
 MIT
