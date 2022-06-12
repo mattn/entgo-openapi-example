@@ -77,8 +77,7 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "content",
-                  "created_at"
+                  "content"
                 ],
                 "properties": {
                   "content": {
@@ -214,7 +213,14 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -249,7 +255,6 @@
         "type": "object",
         "required": [
           "content",
-          "created_at",
           "id"
         ],
         "properties": {

@@ -3,8 +3,10 @@ info:
   title: Ent Schema API
   description: This is an auto generated API description made out of an Ent schema
     definition
+  termsOfService: ""
   contact: {}
-  license: {}
+  license:
+    name: ""
   version: 0.0.0
 servers:
 - url: /
@@ -292,13 +294,6 @@ components:
         created_at:
           type: string
           format: date-time
-    users_body:
-      required:
-      - name
-      type: object
-      properties:
-        name:
-          type: string
   responses:
     "400":
       description: "invalid input, data invalid"

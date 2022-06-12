@@ -9,23 +9,23 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 
-	"github.com/mattn/entgo-openapi-example/crud"
-	"github.com/mattn/entgo-openapi-example/swagger"
+	// WARNING!
+	// Change this to a fully-qualified import path
+	// once you place this file into your project.
+	// For example,
+	//
+	//    sw "github.com/myname/myrepo/go"
+	//
+	sw "github.com/mattn/entgo-openapi-example/go"
 )
 
 func main() {
-	err := crud.NewClient().Schema.Create(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	log.Printf("Server started")
 
-	router := swagger.NewRouter()
+	router := sw.NewRouter()
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

@@ -117,6 +117,12 @@ func (eu *EntryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: entry.FieldContent,
 		})
 	}
+	if eu.mutation.CreatedAtCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Column: entry.FieldCreatedAt,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{entry.Label}
@@ -248,6 +254,12 @@ func (euo *EntryUpdateOne) sqlSave(ctx context.Context) (_node *Entry, err error
 			Type:   field.TypeString,
 			Value:  value,
 			Column: entry.FieldContent,
+		})
+	}
+	if euo.mutation.CreatedAtCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Column: entry.FieldCreatedAt,
 		})
 	}
 	_node = &Entry{config: euo.config}

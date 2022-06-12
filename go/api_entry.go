@@ -31,7 +31,9 @@ func CreateEntry(w http.ResponseWriter, r *http.Request) {
 	client := crud.DefaultClient()
 	e := client.Entry.Create()
 	e.SetContent(ee.Content)
-	e.SetCreatedAt(ee.CreatedAt)
+	if !ee.CreatedAt.IsZero() {
+		e.SetCreatedAt(ee.CreatedAt)
+	}
 	if ee2, err := e.Save(context.Background()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
