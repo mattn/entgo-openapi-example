@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
@@ -105,7 +106,7 @@ func (eq *EntryQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single Entry entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Entry entity is found.
+// Returns a *NotSingularError when exactly one Entry entity is not found.
 // Returns a *NotFoundError when no Entry entities are found.
 func (eq *EntryQuery) Only(ctx context.Context) (*Entry, error) {
 	nodes, err := eq.Limit(2).All(ctx)
@@ -132,7 +133,7 @@ func (eq *EntryQuery) OnlyX(ctx context.Context) *Entry {
 }
 
 // OnlyID is like Only, but returns the only Entry ID in the query.
-// Returns a *NotSingularError when more than one Entry ID is found.
+// Returns a *NotSingularError when exactly one Entry ID is not found.
 // Returns a *NotFoundError when no entities are found.
 func (eq *EntryQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -241,9 +242,8 @@ func (eq *EntryQuery) Clone() *EntryQuery {
 		order:      append([]OrderFunc{}, eq.order...),
 		predicates: append([]predicate.Entry{}, eq.predicates...),
 		// clone intermediate query.
-		sql:    eq.sql.Clone(),
-		path:   eq.path,
-		unique: eq.unique,
+		sql:  eq.sql.Clone(),
+		path: eq.path,
 	}
 }
 
@@ -262,17 +262,15 @@ func (eq *EntryQuery) Clone() *EntryQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (eq *EntryQuery) GroupBy(field string, fields ...string) *EntryGroupBy {
-	grbuild := &EntryGroupBy{config: eq.config}
-	grbuild.fields = append([]string{field}, fields...)
-	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	group := &EntryGroupBy{config: eq.config}
+	group.fields = append([]string{field}, fields...)
+	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := eq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return eq.sqlQuery(ctx), nil
 	}
-	grbuild.label = entry.Label
-	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
-	return grbuild
+	return group
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -289,10 +287,7 @@ func (eq *EntryQuery) GroupBy(field string, fields ...string) *EntryGroupBy {
 //		Scan(ctx, &v)
 func (eq *EntryQuery) Select(fields ...string) *EntrySelect {
 	eq.fields = append(eq.fields, fields...)
-	selbuild := &EntrySelect{EntryQuery: eq}
-	selbuild.label = entry.Label
-	selbuild.flds, selbuild.scan = &eq.fields, selbuild.Scan
-	return selbuild
+	return &EntrySelect{EntryQuery: eq}
 }
 
 func (eq *EntryQuery) prepareQuery(ctx context.Context) error {
@@ -311,21 +306,22 @@ func (eq *EntryQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (eq *EntryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Entry, error) {
+func (eq *EntryQuery) sqlAll(ctx context.Context) ([]*Entry, error) {
 	var (
 		nodes = []*Entry{}
 		_spec = eq.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		return (*Entry).scanValues(nil, columns)
-	}
-	_spec.Assign = func(columns []string, values []interface{}) error {
 		node := &Entry{config: eq.config}
 		nodes = append(nodes, node)
-		return node.assignValues(columns, values)
+		return node.scanValues(columns)
 	}
-	for i := range hooks {
-		hooks[i](ctx, _spec)
+	_spec.Assign = func(columns []string, values []interface{}) error {
+		if len(nodes) == 0 {
+			return fmt.Errorf("ent: Assign called without calling ScanValues")
+		}
+		node := nodes[len(nodes)-1]
+		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, eq.driver, _spec); err != nil {
 		return nil, err
@@ -436,7 +432,6 @@ func (eq *EntryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // EntryGroupBy is the group-by builder for Entry entities.
 type EntryGroupBy struct {
 	config
-	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -458,6 +453,209 @@ func (egb *EntryGroupBy) Scan(ctx context.Context, v interface{}) error {
 	}
 	egb.sql = query
 	return egb.sqlScan(ctx, v)
+}
+
+// ScanX is like Scan, but panics if an error occurs.
+func (egb *EntryGroupBy) ScanX(ctx context.Context, v interface{}) {
+	if err := egb.Scan(ctx, v); err != nil {
+		panic(err)
+	}
+}
+
+// Strings returns list of strings from group-by.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Strings(ctx context.Context) ([]string, error) {
+	if len(egb.fields) > 1 {
+		return nil, errors.New("ent: EntryGroupBy.Strings is not achievable when grouping more than 1 field")
+	}
+	var v []string
+	if err := egb.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// StringsX is like Strings, but panics if an error occurs.
+func (egb *EntryGroupBy) StringsX(ctx context.Context) []string {
+	v, err := egb.Strings(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// String returns a single string from a group-by query.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) String(ctx context.Context) (_ string, err error) {
+	var v []string
+	if v, err = egb.Strings(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntryGroupBy.Strings returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// StringX is like String, but panics if an error occurs.
+func (egb *EntryGroupBy) StringX(ctx context.Context) string {
+	v, err := egb.String(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Ints returns list of ints from group-by.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Ints(ctx context.Context) ([]int, error) {
+	if len(egb.fields) > 1 {
+		return nil, errors.New("ent: EntryGroupBy.Ints is not achievable when grouping more than 1 field")
+	}
+	var v []int
+	if err := egb.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// IntsX is like Ints, but panics if an error occurs.
+func (egb *EntryGroupBy) IntsX(ctx context.Context) []int {
+	v, err := egb.Ints(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Int returns a single int from a group-by query.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Int(ctx context.Context) (_ int, err error) {
+	var v []int
+	if v, err = egb.Ints(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntryGroupBy.Ints returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// IntX is like Int, but panics if an error occurs.
+func (egb *EntryGroupBy) IntX(ctx context.Context) int {
+	v, err := egb.Int(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Float64s returns list of float64s from group-by.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Float64s(ctx context.Context) ([]float64, error) {
+	if len(egb.fields) > 1 {
+		return nil, errors.New("ent: EntryGroupBy.Float64s is not achievable when grouping more than 1 field")
+	}
+	var v []float64
+	if err := egb.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// Float64sX is like Float64s, but panics if an error occurs.
+func (egb *EntryGroupBy) Float64sX(ctx context.Context) []float64 {
+	v, err := egb.Float64s(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Float64 returns a single float64 from a group-by query.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Float64(ctx context.Context) (_ float64, err error) {
+	var v []float64
+	if v, err = egb.Float64s(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntryGroupBy.Float64s returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// Float64X is like Float64, but panics if an error occurs.
+func (egb *EntryGroupBy) Float64X(ctx context.Context) float64 {
+	v, err := egb.Float64(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Bools returns list of bools from group-by.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Bools(ctx context.Context) ([]bool, error) {
+	if len(egb.fields) > 1 {
+		return nil, errors.New("ent: EntryGroupBy.Bools is not achievable when grouping more than 1 field")
+	}
+	var v []bool
+	if err := egb.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// BoolsX is like Bools, but panics if an error occurs.
+func (egb *EntryGroupBy) BoolsX(ctx context.Context) []bool {
+	v, err := egb.Bools(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Bool returns a single bool from a group-by query.
+// It is only allowed when executing a group-by query with one field.
+func (egb *EntryGroupBy) Bool(ctx context.Context) (_ bool, err error) {
+	var v []bool
+	if v, err = egb.Bools(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntryGroupBy.Bools returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// BoolX is like Bool, but panics if an error occurs.
+func (egb *EntryGroupBy) BoolX(ctx context.Context) bool {
+	v, err := egb.Bool(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (egb *EntryGroupBy) sqlScan(ctx context.Context, v interface{}) error {
@@ -501,7 +699,6 @@ func (egb *EntryGroupBy) sqlQuery() *sql.Selector {
 // EntrySelect is the builder for selecting fields of Entry entities.
 type EntrySelect struct {
 	*EntryQuery
-	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -513,6 +710,201 @@ func (es *EntrySelect) Scan(ctx context.Context, v interface{}) error {
 	}
 	es.sql = es.EntryQuery.sqlQuery(ctx)
 	return es.sqlScan(ctx, v)
+}
+
+// ScanX is like Scan, but panics if an error occurs.
+func (es *EntrySelect) ScanX(ctx context.Context, v interface{}) {
+	if err := es.Scan(ctx, v); err != nil {
+		panic(err)
+	}
+}
+
+// Strings returns list of strings from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Strings(ctx context.Context) ([]string, error) {
+	if len(es.fields) > 1 {
+		return nil, errors.New("ent: EntrySelect.Strings is not achievable when selecting more than 1 field")
+	}
+	var v []string
+	if err := es.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// StringsX is like Strings, but panics if an error occurs.
+func (es *EntrySelect) StringsX(ctx context.Context) []string {
+	v, err := es.Strings(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// String returns a single string from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) String(ctx context.Context) (_ string, err error) {
+	var v []string
+	if v, err = es.Strings(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntrySelect.Strings returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// StringX is like String, but panics if an error occurs.
+func (es *EntrySelect) StringX(ctx context.Context) string {
+	v, err := es.String(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Ints returns list of ints from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Ints(ctx context.Context) ([]int, error) {
+	if len(es.fields) > 1 {
+		return nil, errors.New("ent: EntrySelect.Ints is not achievable when selecting more than 1 field")
+	}
+	var v []int
+	if err := es.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// IntsX is like Ints, but panics if an error occurs.
+func (es *EntrySelect) IntsX(ctx context.Context) []int {
+	v, err := es.Ints(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Int returns a single int from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Int(ctx context.Context) (_ int, err error) {
+	var v []int
+	if v, err = es.Ints(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntrySelect.Ints returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// IntX is like Int, but panics if an error occurs.
+func (es *EntrySelect) IntX(ctx context.Context) int {
+	v, err := es.Int(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Float64s(ctx context.Context) ([]float64, error) {
+	if len(es.fields) > 1 {
+		return nil, errors.New("ent: EntrySelect.Float64s is not achievable when selecting more than 1 field")
+	}
+	var v []float64
+	if err := es.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// Float64sX is like Float64s, but panics if an error occurs.
+func (es *EntrySelect) Float64sX(ctx context.Context) []float64 {
+	v, err := es.Float64s(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Float64(ctx context.Context) (_ float64, err error) {
+	var v []float64
+	if v, err = es.Float64s(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntrySelect.Float64s returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// Float64X is like Float64, but panics if an error occurs.
+func (es *EntrySelect) Float64X(ctx context.Context) float64 {
+	v, err := es.Float64(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Bools returns list of bools from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Bools(ctx context.Context) ([]bool, error) {
+	if len(es.fields) > 1 {
+		return nil, errors.New("ent: EntrySelect.Bools is not achievable when selecting more than 1 field")
+	}
+	var v []bool
+	if err := es.Scan(ctx, &v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// BoolsX is like Bools, but panics if an error occurs.
+func (es *EntrySelect) BoolsX(ctx context.Context) []bool {
+	v, err := es.Bools(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Bool returns a single bool from a selector. It is only allowed when selecting one field.
+func (es *EntrySelect) Bool(ctx context.Context) (_ bool, err error) {
+	var v []bool
+	if v, err = es.Bools(ctx); err != nil {
+		return
+	}
+	switch len(v) {
+	case 1:
+		return v[0], nil
+	case 0:
+		err = &NotFoundError{entry.Label}
+	default:
+		err = fmt.Errorf("ent: EntrySelect.Bools returned %d results when one was expected", len(v))
+	}
+	return
+}
+
+// BoolX is like Bool, but panics if an error occurs.
+func (es *EntrySelect) BoolX(ctx context.Context) bool {
+	v, err := es.Bool(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (es *EntrySelect) sqlScan(ctx context.Context, v interface{}) error {

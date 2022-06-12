@@ -9,7 +9,6 @@
 package swagger
 
 type InlineResponse404 struct {
-
 	Code int32 `json:"code,omitempty"`
 
 	Errors *interface{} `json:"errors,omitempty"`
